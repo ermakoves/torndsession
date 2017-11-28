@@ -26,7 +26,7 @@ del l
 class SessionManager(object):
 
     SESSION_ID = 'msid'
-    DEFAULT_SESSION_LIFETIME = 1200 # seconds
+    DEFAULT_SESSION_LIFETIME = 1200  # seconds
 
     def __init__(self, handler):
         self.handler = handler
@@ -37,16 +37,30 @@ class SessionManager(object):
         self._expires = self._default_session_lifetime
         self._is_dirty = True
         self.__init_session_driver()
-        self.__init_session_object() # initialize session object
+        self.__init_session_object()  # initialize session object
 
     def __init_session_object(self):
         cookiename = self.settings.get('sid_name', self.SESSION_ID)
         session_id = self.handler.get_cookie(cookiename)
+
+        cookie_config = self.settings.get("cookie_config")
+        if cookie_config:
+            expires = cookie_config.get("expires")
+            expires_days = cookie_config.get("expires_days")
+            if expires_days is not None and not expires:
+                self._expires = datetime.utcnow() + timedelta(days=expires_days)
+
+            if expires and isinstance(expires, int):
+                self._expires = datetime.utcnow() + timedelta(seconds=expires)
+
+            if self._expires:
+                cookie_config["expires"] = self._expires
+
         if not session_id:
             session_id = self._generate_session_id(30)
             self.handler.set_cookie(cookiename,
                                     session_id,
-                                    **self.__session_settings())
+                                    **cookie_config)
             self._is_dirty = True
             self.session = {}
         else:
@@ -56,14 +70,7 @@ class SessionManager(object):
                 self._is_dirty = True
             else:
                 self._is_dirty = False
-        cookie_config = self.settings.get("cookie_config")
-        if cookie_config:
-            expires = cookie_config.get("expires")
-            expires_days = cookie_config.get("expires_days")
-            if expires_days is not None and not expires:
-                expires = datetime.utcnow() + timedelta(days=expires_days)
-            if expires and isinstance(expires, int):
-                self._expires = datetime.utcnow() + timedelta(seconds=expires)
+
         self._expires = self._expires if self._expires else self._default_session_lifetime
         self._id = session_id
 
@@ -233,12 +240,6 @@ class SessionManager(object):
         if not hasattr(self, '_expires'):
             self.__init_session_object()
         return self._expires
-
-    def __session_settings(self):
-        session_settings = self.settings.get('cookie_config', {})
-        session_settings.setdefault('expires', None)
-        session_settings.setdefault('expires_days', None)
-        return session_settings
 
 
 class SessionMixin(object):
