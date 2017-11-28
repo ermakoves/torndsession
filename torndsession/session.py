@@ -62,8 +62,8 @@ class SessionManager(object):
             expires_days = cookie_config.get("expires_days")
             if expires_days is not None and not expires:
                 expires = datetime.utcnow() + timedelta(days=expires_days)
-            if expires and isinstance(expires, datetime):
-                self._expires = expires
+            if expires and isinstance(expires, int):
+                self._expires = datetime.utcnow() + timedelta(seconds=expires)
         self._expires = self._expires if self._expires else self._default_session_lifetime
         self._id = session_id
 
